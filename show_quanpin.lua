@@ -6,7 +6,7 @@ local function filter_func(input, env)
   local user_input = ctx.input
   local caret = ctx.caret_pos or utf8.len(user_input)
 
-  if string.sub(user_input, 1, 1) == "\\" then
+  if not string.match(user_input, "^[A-Za-z]") then
     for cand in input:iter() do
       yield(cand)  -- pass through unmodified (keep preedit)
     end
