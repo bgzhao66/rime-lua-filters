@@ -62,3 +62,5 @@ show_bopomofo = require("show_bopomofo")
 
 show_quanpin = require("show_quanpin")
 
+show_quanpin_tonal = require("show_quanpin_tonal")
+

@@ -887,6 +887,93 @@ function bopomofo.shuangpin_to_quanpin_full(code)
   return res
 end
 
+-- Lua function to convert toneless pinyin + tone number to tonal pinyin
+function to_tonal_pinyin(toneless, tone)
+    -- Return as-is if tone is 0
+    if tone == "" then return toneless end
+
+    -- vowel map for tones: a, e, i, o, u, v (v = ü)
+    local vowels = {
+        a = {"ā","á","ǎ","à"},
+        e = {"ē","é","ě","è"},
+        i = {"ī","í","ǐ","ì"},
+        o = {"ō","ó","ǒ","ò"},
+        u = {"ū","ú","ǔ","ù"},
+        v = {"ǖ","ǘ","ǚ","ǜ"}, -- ü
+    }
+
+    -- tone number map
+    local tones = {
+      s = 0,
+      l = 1,
+      r = 2,
+      v = 3,
+      j = 4,
+    }
+
+    -- convert tone index from 1-4 to Lua index 1-4
+    local tone_index = 6
+    if tones[tone] then
+      tone_index = tones[tone]
+    end
+
+    if tone_index < 1 then
+       return toneless
+    elseif tone_index > 4 then
+       return toneless .. "?" -- invalid tone, return as-is
+    end
+
+    toneless = toneless:gsub("ü", "v")
+
+    local function replace_vowel(v)
+        local lower = v:lower()
+        if vowels[lower] then
+            return vowels[lower][tone_index]
+        else
+            return v
+        end
+    end
+
+    local main_vowel
+
+    -- priority: a > o > e
+    main_vowel = toneless:match("[aA]") or toneless:match("[oO]") or toneless:match("[eE]")
+
+    if not main_vowel then
+        -- handle i/u/ü: pick the last occurrence
+        local i_pos = toneless:match(".*()[iI]") or 0
+        local u_pos = toneless:match(".*()[uU]") or 0
+        local v_pos = toneless:match(".*()[vV]") or 0
+        local last_pos = math.max(i_pos, u_pos, v_pos)
+        if last_pos > 0 then
+            main_vowel = toneless:sub(last_pos, last_pos)
+        else
+            return toneless
+        end
+    end
+
+    if not main_vowel then
+        return toneless -- no vowel found
+    end
+
+    -- replace the first occurrence of main_vowel with tonal mark
+    local result, n = toneless:gsub(main_vowel, replace_vowel, 1)
+    return result
+end
+
+function bopomofo.sanpin_to_quanpin_full(code)
+  local res = ""
+  for i = 1, #code, 3 do
+    local syllable = code:sub(i, i+1)
+    local tone = code:sub(i+2,i+2)
+    local py = shuangpin_to_pinyin(syllable)
+    local tonal_py = to_tonal_pinyin(py, tone)
+    local sep = (#syllable + #tone == 3) and " " or ""
+    res = res .. tonal_py .. sep
+  end
+  return res
+end
+
 local function pinyin_to_zhuyin(pinyin)
   res = PINYIN_TO_ZHUYIN[pinyin]
   if res ~= nil then
