@@ -6,19 +6,31 @@ local function filter_func(input, env)
   local user_input = ctx.input
   local caret = ctx.caret_pos or utf8.len(user_input)
 
-  if not string.match(user_input, "^[A-Za-z]") then
+  -- 當前正在輸入的片段（未上屏部分）
+  local comp = ctx.composition
+  local active_input = user_input
+  if comp:empty() == false then
+    local seg = comp:back()  -- 最後一個 segment 即當前輸入區
+    local start = seg.start
+    local endpos = seg._end
+    active_input = user_input:sub(start + 1, endpos)
+  end
+
+  -- 非字母開頭：直接透傳
+  if not string.match(active_input, "^[A-Za-z]") then
     for cand in input:iter() do
-      yield(cand)  -- pass through unmodified (keep preedit)
+      yield(cand)
     end
     return
   end
 
+  -- 根據候選長度拆分雙拼與倉頡尾碼
   for cand in input:iter() do
     local N = utf8.len(cand.text) or 1
-    local total_len = math.min(utf8.len(user_input), caret)
-    local py_len = math.min(2*N, total_len)
-    local py_code = user_input:sub(1, py_len)
-    local cj_code = user_input:sub(2*N+1, total_len)
+    local total_len = math.min(utf8.len(active_input), caret)
+    local py_len = math.min(2 * N, total_len)
+    local py_code = active_input:sub(1, py_len)
+    local cj_code = active_input:sub(2 * N + 1, total_len)
 
     local quanpin = bopomofo.shuangpin_to_quanpin_full(py_code)
     cand.preedit = string.format("%s%s", quanpin, cj_code)
